@@ -16,28 +16,63 @@ __global__ void adaptive_threshKernel(unsigned char *Pixel_in,
 
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-
     int half_filterSize = filterSize / 2;
 
-    extern __shared__ unsigned char tile[]
 
+    extern __shared__ unsigned char tile[];
+
+    int nTileThreads = blockDim.x * blockDim.y;
     int tid = threadIdx.y * blockDim.x + threadIdx.x;
-    int nThreads = blockDim.x * blockDim.y;
-    int nTilePixels = (blockDim.x + int(filterSize / 2) * 2) * (blockDim.y + int(filterSize / 2) * 2);
 
-    //    __syncthreads()
+    int tileWidth  = blockDim.x + (half_filterSize * 2);
+    int tileHeight = blockDim.y + (half_filterSize * 2);
+    int nTile = tileWidth * tileHeight;
+
+    int numberOfLooping = 1 + nTile/nTileThreads;
+
+    int base_col = blockIdx.x * blockDim.x - half_filterSize;
+    int base_row = blockIdx.y * blockDim.y - half_filterSize;
+
+    for (int i = 0; i < numberOfLooping; i++)
+    {
+        int tilePixelIndex = i * nTileThreads + tid;
+
+        if (tilePixelIndex < nTile){
+            int tileGlobalIndex = (base_row * width + base_col) + (tilePixelIndex / tileWidth ) * width + (tilePixelIndex % tileWidth );
+
+            int currentRow = base_row + (tilePixelIndex / tileWidth);
+            int currentCol = base_col + (tilePixelIndex % tileWidth);
+
+            if (currentRow >= 0 && currentRow < height && currentCol >= 0 && currentCol < width) {
+                tile[tilePixelIndex] = Pixel_in[tileGlobalIndex];
+            } else {
+                tile[tilePixelIndex] = 0;
+            }
+        }
+    }
+
+    __syncthreads();
+
+
+
 
     if (col < width && row < height){
 
         float sum = 0;
+        int num_of_pixels = 0;
+
         for (int t_row = -half_filterSize; t_row <= half_filterSize; t_row++) {
             for (int t_col = -half_filterSize; t_col <= half_filterSize; t_col++) {
 
-                int current_row = row + t_row;
-                int current_col = col + t_col;
-                if (current_row >= 0 && current_col >= 0 && current_row < height && current_col < width){
-                    unsigned char neighbour_pixel = Pixel_in[current_row * width + current_col];
-                    sum += neighbour_pixel;
+                int sharedMemCol = threadIdx.x + half_filterSize + t_col;
+                int sharedMemRow = threadIdx.y + half_filterSize + t_row;
+                int tileIndex = sharedMemRow * tileWidth + sharedMemCol;
+
+                int currentRow = row + t_row;
+                int currentCol = col + t_col;
+
+                if (currentRow >= 0 && currentCol >= 0 && currentRow < height && currentCol < width){
+                    sum += tile[tileIndex];
                     num_of_pixels++;
                 }
             }
@@ -46,14 +81,15 @@ __global__ void adaptive_threshKernel(unsigned char *Pixel_in,
         float mean = sum / num_of_pixels;
         int threshold = int(mean+0.5) - constance;
 
-        if (Pixel_in[row * width + col] > threshold) {
+        int center_idx = (threadIdx.y + half_filterSize) * tileWidth + (threadIdx.x + half_filterSize);
+
+        if (tile[center_idx] > threshold) {
             Pixel_out[row * width + col] = maxValue;
         }
         else {
             Pixel_out[row * width + col] = 0;
         }
     }
-
 }
 
 torch::Tensor adaptive_thresh(torch::Tensor img, int filterSize, int constance, int maxValue) {
