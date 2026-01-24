@@ -18,12 +18,12 @@ __global__ void adaptive_threshKernel(unsigned char *Pixel_in,
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
     int num_of_pixels = 0;
-
+    int half_blockSize = blockSize / 2;
     if (col < width && row < height){
 
         float sum = 0;
-        for (int t_row = -blockSize; t_row <= blockSize; t_row++) {
-            for (int t_col = -blockSize; t_col <= blockSize; t_col++) {
+        for (int t_row = -half_blockSize; t_row <= half_blockSize; t_row++) {
+            for (int t_col = -half_blockSize; t_col <= half_blockSize; t_col++) {
 
                 int current_row = row + t_row;
                 int current_col = col + t_col;
@@ -36,7 +36,7 @@ __global__ void adaptive_threshKernel(unsigned char *Pixel_in,
         }
 
         float mean = sum / num_of_pixels;
-        int threshold = int(mean) - constance;
+        int threshold = int(mean+0.5) - constance;
 
         if (Pixel_in[row * width + col] > threshold) {
             Pixel_out[row * width + col] = maxValue;
