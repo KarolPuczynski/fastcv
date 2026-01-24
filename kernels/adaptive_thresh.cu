@@ -11,19 +11,27 @@ __global__ void adaptive_threshKernel(unsigned char *Pixel_in,
                                         int width,
                                         int height,
                                         int maxValue,
-                                        int blockSize,
+                                        int filterSize,
                                         int constance) {
 
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
-    int num_of_pixels = 0;
-    int half_blockSize = blockSize / 2;
+    int half_filterSize = filterSize / 2;
+
+    extern __shared__ unsigned char tile[]
+
+    int tid = threadIdx.y * blockDim.x + threadIdx.x;
+    int nThreads = blockDim.x * blockDim.y;
+    int nTilePixels = (blockDim.x + int(filterSize / 2) * 2) * (blockDim.y + int(filterSize / 2) * 2);
+
+    //    __syncthreads()
+
     if (col < width && row < height){
 
         float sum = 0;
-        for (int t_row = -half_blockSize; t_row <= half_blockSize; t_row++) {
-            for (int t_col = -half_blockSize; t_col <= half_blockSize; t_col++) {
+        for (int t_row = -half_filterSize; t_row <= half_filterSize; t_row++) {
+            for (int t_col = -half_filterSize; t_col <= half_filterSize; t_col++) {
 
                 int current_row = row + t_row;
                 int current_col = col + t_col;
@@ -57,11 +65,12 @@ torch::Tensor adaptive_thresh(torch::Tensor img, int filterSize, int constance, 
 
     dim3 dimBlock = getOptimalBlockDim(width, height);
     dim3 dimGrid(cdiv(width, dimBlock.x), cdiv(height, dimBlock.y));
+    size_t shared_memorySize = (dimBlock.x + int(filterSize / 2) * 2) * (dimBlock.y + int(filterSize / 2) * 2);
 
     auto result = torch::empty({height, width},
                               torch::TensorOptions().dtype(torch::kByte).device(img.device()));
 
-    adaptive_threshKernel<<<dimGrid, dimBlock, 0, at::cuda::getCurrentCUDAStream()>>>(
+    adaptive_threshKernel<<<dimGrid, dimBlock, shared_memorySize, at::cuda::getCurrentCUDAStream()>>>(
         img.data_ptr<unsigned char>(),
         result.data_ptr<unsigned char>(),
         width, height, maxValue, filterSize, constance);
