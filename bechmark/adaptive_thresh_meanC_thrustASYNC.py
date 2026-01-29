@@ -24,7 +24,7 @@ def benchamrk_adaptive_thresh(sizes=[1024, 2048, 4096], runs=50):
         torch.cuda.synchronize()
         start = time.perf_counter()
         for _ in range(runs):
-            _ = fastcv.adaptive_thresh(img_torch, 5, 2, 255)  # doing 1 is half size of the filter ie (3 x 3) # tu cos bedzie trzeba zmienic
+            _ = fastcv.adaptive_thresh_meanC_thrustASYNC(img_torch, 5, 2, 255)
         torch.cuda.synchronize()
         end = time.perf_counter()
         fc_time = (end - start) / runs * 1000  # ms per run

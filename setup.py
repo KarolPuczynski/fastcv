@@ -30,7 +30,8 @@ setup(
                 "kernels/dilation.cu",
                 "kernels/erosion.cu",
                 "kernels/module.cpp",
-                "kernels/adaptive_thresh.cu",
+                "kernels/adaptive_thresh_meanC_thrustASYNC.cu",
+                "kernels/adaptive_thresh_meanC_thrustSYNC.cu",
             ],
             extra_compile_args={
                 "cxx": cxx_args,

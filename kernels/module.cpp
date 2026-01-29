@@ -6,7 +6,9 @@ torch::Tensor box_blur(torch::Tensor img, int blurSize);
 torch::Tensor sobel(torch::Tensor img);
 torch::Tensor dilation(torch::Tensor img, int filterSize);
 torch::Tensor erosion(torch::Tensor img, int filterSize);
-torch::Tensor adaptive_thresh(torch::Tensor img, int filterSize, int constance, int maxValue);
+torch::Tensor adaptive_thresh_meanC_thrustASYNC(torch::Tensor img, int filterSize, int constance, int maxValue);
+torch::Tensor adaptive_thresh_meanC_thrustSYNC(torch::Tensor img, int filterSize, int constance, int maxValue);
+
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m){
     m.def("rgb2gray", &rgb_to_gray, "rgb to grayscale kernel");
@@ -14,5 +16,6 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m){
     m.def("sobel", &sobel, "sobel filter kernel");
     m.def("dilate", &dilation, "dilation kernel");
     m.def("erode", &erosion, "erosion kernel");
-    m.def("adaptive_thresh", &adaptive_thresh, "adaptive thresh kernel");
+    m.def("adaptive_thresh_meanC_thrustASYNC", &adaptive_thresh_meanC_thrustASYNC, "adaptive thresh mean C thrust ASYNC kernel");
+    m.def("adaptive_thresh_meanC_thrustSYNC", &adaptive_thresh_meanC_thrustSYNC, "adaptive thresh mean C thrust SYNC kernel");
 }
